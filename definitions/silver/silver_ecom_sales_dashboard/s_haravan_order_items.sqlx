@@ -1,0 +1,23 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_haravan_order_items",
+  description: "Haravan chi tiết món. Khử trùng stg_haravan_order_items: giữ bản mới nhất / (shop_id, order_id, line_item_id).",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(order_update_time, MONTH)",
+    clusterBy: ["shop_id"]
+  },
+  tags: ["silver", "haravan"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, order_id, line_item_id
+      ORDER BY order_update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_haravan_order_items")}
+)
+WHERE _rn = 1

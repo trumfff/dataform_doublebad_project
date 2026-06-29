@@ -1,0 +1,17 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_all_orders_detail",
+  description: "Gộp đơn cấp MÓN 3 sàn (Shopee/Haravan/TikTok) từ silver mới, schema chung 57 cột (như all_orders_detail cũ). UNION ALL v_items_*. Lazada chưa có silver mới.",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(create_time, MONTH)",
+    clusterBy: ["platform"]
+  },
+  tags: ["gold", "all_orders"]
+}
+
+SELECT * FROM ${ref("v_items_shopee")}
+UNION ALL
+SELECT * FROM ${ref("v_items_tiktok")}
+UNION ALL
+SELECT * FROM ${ref("v_items_haravan")}

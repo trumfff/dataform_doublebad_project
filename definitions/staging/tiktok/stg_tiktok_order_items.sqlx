@@ -1,0 +1,31 @@
+config {
+  type: "view",
+  schema: "stg_tiktok",
+  name: "stg_tiktok_order_items",
+  description: "Explode line_items TikTok → 1 dòng = 1 món. ID→STRING, tiền string→FLOAT64. GIỮ mọi snapshot.",
+  tags: ["staging", "tiktok"]
+}
+
+SELECT
+  o.shop_id,
+  o.ingest_dt,
+  o.order_id,
+  o.order_status,
+  o.update_time AS order_update_time,
+  CAST(i.id AS STRING)          AS line_item_id,
+  CAST(i.product_id AS STRING)  AS product_id,
+  i.product_name,
+  CAST(i.sku_id AS STRING)      AS sku_id,
+  i.sku_name,
+  i.seller_sku,
+  i.sku_type,
+  i.is_gift,
+  i.display_status,
+  CAST(i.original_price AS FLOAT64)  AS original_price,
+  CAST(i.sale_price AS FLOAT64)      AS sale_price,
+  CAST(i.seller_discount AS FLOAT64) AS seller_discount,
+  CAST(i.platform_discount AS FLOAT64) AS platform_discount,
+  i.shipping_provider_name,
+  i.tracking_number,
+  o._ingested_at
+FROM ${ref("stg_tiktok_orders")} o, UNNEST(o.line_items) AS i

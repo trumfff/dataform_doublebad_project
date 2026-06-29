@@ -1,0 +1,22 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_shopee_ads_campaign",
+  description: "Shopee ads campaign (dimension). Khử trùng stg_ads_campaign: giữ cấu hình mới nhất / (shop_id, campaign_id).",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(ingest_dt, MONTH)", 
+  },
+  tags: ["silver", "shopee"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, campaign_id
+      ORDER BY _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_shopee_ads_campaign")}
+)
+WHERE _rn = 1

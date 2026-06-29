@@ -1,0 +1,23 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_tiktok_orders",
+  description: "TikTok đơn (cấp đơn). Khử trùng stg_tiktok_orders: giữ bản update_time mới nhất / (shop_id, order_id). Bỏ line_items (đã có ở order_items).",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(create_time, MONTH)",
+    clusterBy: ["shop_id"]
+  },
+  tags: ["silver", "tiktok"]
+}
+
+SELECT * EXCEPT(line_items, _rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, order_id
+      ORDER BY update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_tiktok_orders")}
+)
+WHERE _rn = 1

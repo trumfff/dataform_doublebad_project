@@ -1,0 +1,39 @@
+config {
+  type: "view",
+  schema: "stg_shopee",
+  name: "stg_shopee_order_escrow",
+  description: "Parse escrow: flatten order_income (người bán) + buyer_payment_info (người mua). Quy ước: ID→STRING, toàn bộ tiền→FLOAT64 (VND). GIỮ mọi snapshot. Tập cột tài chính CHỌN LỌC.",
+  tags: ["staging", "shopee"]
+}
+
+SELECT
+  CAST(shop_id AS STRING)       AS shop_id,
+  ingest_dt,
+  escrow_detail.order_sn        AS order_sn,
+  escrow_detail.buyer_user_name AS buyer_user_name,
+
+  -- order_income: dòng tiền của NGƯỜI BÁN (FLOAT64)
+  CAST(escrow_detail.order_income.escrow_amount               AS FLOAT64) AS escrow_amount,
+  CAST(escrow_detail.order_income.buyer_total_amount          AS FLOAT64) AS buyer_total_amount,
+  CAST(escrow_detail.order_income.order_original_price        AS FLOAT64) AS order_original_price,
+  CAST(escrow_detail.order_income.order_discounted_price      AS FLOAT64) AS order_discounted_price,
+  CAST(escrow_detail.order_income.order_selling_price         AS FLOAT64) AS order_selling_price,
+  CAST(escrow_detail.order_income.cost_of_goods_sold          AS FLOAT64) AS cost_of_goods_sold,
+  CAST(escrow_detail.order_income.seller_discount             AS FLOAT64) AS seller_discount,
+  CAST(escrow_detail.order_income.order_seller_discount       AS FLOAT64) AS order_seller_discount,
+  CAST(escrow_detail.order_income.commission_fee              AS FLOAT64) AS commission_fee,
+  CAST(escrow_detail.order_income.order_ams_commission_fee    AS FLOAT64) AS ams_commission_fee,
+  CAST(escrow_detail.order_income.credit_card_transaction_fee AS FLOAT64) AS credit_card_transaction_fee,
+  CAST(escrow_detail.order_income.campaign_fee                AS FLOAT64) AS campaign_fee,
+  CAST(escrow_detail.order_income.fbs_fee                     AS FLOAT64) AS fbs_fee,
+  CAST(escrow_detail.order_income.actual_shipping_fee         AS FLOAT64) AS actual_shipping_fee,
+  CAST(escrow_detail.order_income.final_shipping_fee          AS FLOAT64) AS final_shipping_fee,
+
+  -- buyer_payment_info: phía NGƯỜI MUA trả (FLOAT64)
+  CAST(escrow_detail.buyer_payment_info.merchant_subtotal    AS FLOAT64) AS merchant_subtotal,
+  CAST(escrow_detail.buyer_payment_info.seller_voucher       AS FLOAT64) AS seller_voucher,
+  CAST(escrow_detail.buyer_payment_info.shopee_voucher       AS FLOAT64) AS shopee_voucher,
+  escrow_detail.buyer_payment_info.buyer_payment_method      AS buyer_payment_method,
+
+  _ingested_at
+FROM ${ref("shopee_escrow")}

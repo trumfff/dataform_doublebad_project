@@ -1,0 +1,36 @@
+config {
+  type: "incremental",
+  schema: "order_detail",
+  name: "all_orders_detail",
+  description: "Mart hợp nhất đơn 4 sàn = UNION ALL của v_orders_shopee/tiktok/haravan/lazada. Incremental: mỗi lần làm mới cửa sổ 3 tháng gần nhất (DELETE + INSERT) theo create_time.",
+  bigquery: {
+    partitionBy: "DATE(create_time)",
+    updatePartitionFilter: "create_time >= DATETIME(DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH), MONTH))"
+  },
+  tags: ["gold", "all_platforms"]
+}
+
+js {
+  const winStart = "DATETIME(DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH), MONTH))";
+  const winEnd   = "DATETIME(CURRENT_DATE())";
+}
+
+pre_operations {
+  ${when(incremental(),
+    `DELETE FROM ${self()}
+     WHERE create_time >= ${winStart}
+       AND create_time <= ${winEnd}`
+  )}
+}
+
+SELECT * FROM (
+  SELECT * FROM ${ref("v_orders_shopee")}
+  UNION ALL
+  SELECT * FROM ${ref("v_orders_tiktok")}
+  UNION ALL
+  SELECT * FROM ${ref("v_orders_haravan")}
+  UNION ALL
+  SELECT * FROM ${ref("v_orders_lazada")}
+)
+WHERE create_time >= ${winStart}
+  AND create_time <= ${winEnd}

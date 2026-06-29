@@ -1,0 +1,22 @@
+config {
+    type: "view",
+    schema: "stg_shopee",
+    name: "stg_shopee_ads_daily",
+    description: "Explode metrics_list → campaign × ngày. Quy ước: ID (campaign_id, shop_id)→STRING, metrics→FLOAT64 (đã FLOAT từ bronze), date→DATE. GIỮ mọi snapshot.",
+    tags: ["staging", "shopee"]
+}
+
+SELECT
+  CAST(t.shop_id AS STRING)     AS shop_id,
+  t.ingest_dt,
+  CAST(t.campaign_id AS STRING) AS campaign_id,
+  t.ad_type,
+  t.ad_name,
+  t.campaign_placement,
+  PARSE_DATE('%d-%m-%Y', m.date) AS metric_date,
+  m.impression, m.clicks, m.ctr, m.expense,
+  m.broad_gmv, m.broad_order, m.broad_order_amount, m.broad_roi, m.broad_cir,
+  m.direct_gmv, m.direct_order, m.direct_order_amount, m.direct_roi, m.direct_cir, m.direct_cr,
+  m.cr, m.cpc, m.cpdc,
+  t._ingested_at
+FROM ${ref("shopee_ads_daily")} t, UNNEST(t.metrics_list) AS m

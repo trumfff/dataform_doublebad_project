@@ -1,0 +1,24 @@
+config {
+  type: "view",
+  schema: "stg_shopee",
+  name: "stg_shopee_ads_campaign",
+  description: "Parse ads_campaign: flatten common_info + auto_bidding_info. Quy ước: ID (campaign_id, item_id_list)→STRING, ngân sách/target→FLOAT64. GIỮ mọi snapshot.",
+  tags: ["staging", "shopee"]
+}
+
+SELECT
+  CAST(shop_id AS STRING)        AS shop_id,
+  ingest_dt,
+  CAST(campaign_id AS STRING)    AS campaign_id,
+  common_info.ad_type            AS ad_type,
+  common_info.ad_name            AS ad_name,
+  common_info.campaign_status    AS campaign_status,
+  common_info.bidding_method     AS bidding_method,
+  common_info.campaign_placement AS campaign_placement,
+  CAST(common_info.campaign_budget AS FLOAT64) AS campaign_budget,
+  TIMESTAMP_SECONDS(NULLIF(common_info.campaign_duration.start_time, 0)) AS start_time,
+  TIMESTAMP_SECONDS(NULLIF(common_info.campaign_duration.end_time, 0))   AS end_time,
+  ARRAY(SELECT CAST(x AS STRING) FROM UNNEST(common_info.item_id_list) AS x) AS item_id_list,
+  CAST(auto_bidding_info.roas_target AS FLOAT64) AS roas_target,
+  _ingested_at
+FROM ${ref("shopee_ads_campaign")}

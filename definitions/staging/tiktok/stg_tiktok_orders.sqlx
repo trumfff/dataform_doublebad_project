@@ -1,0 +1,40 @@
+config {
+  type: "view",
+  schema: "stg_tiktok",
+  name: "stg_tiktok_orders",
+  description: "Parse TikTok orders: flatten header + payment{}, ép kiểu (ID→STRING, tiền string→FLOAT64, epoch→TIMESTAMP). GIỮ mọi snapshot. line_items để raw cho order_items.",
+  tags: ["staging", "tiktok"]
+}
+
+SELECT
+  CAST(shop_id AS STRING)        AS shop_id,
+  ingest_dt,
+  CAST(id AS STRING)             AS order_id,
+  status                         AS order_status,
+  buyer_email,
+  is_cod,
+  order_type,
+  delivery_type,
+  fulfillment_type,
+  payment_method_name            AS payment_method,
+  shipping_provider              AS shipping_carrier,
+  shipping_type,
+  tracking_number,
+  payment.currency               AS currency,
+  CAST(payment.total_amount AS FLOAT64)                  AS total_amount,
+  CAST(payment.sub_total AS FLOAT64)                     AS sub_total,
+  CAST(payment.original_total_product_price AS FLOAT64)  AS original_total_product_price,
+  CAST(payment.original_shipping_fee AS FLOAT64)         AS original_shipping_fee,
+  CAST(payment.shipping_fee AS FLOAT64)                  AS shipping_fee,
+  CAST(payment.platform_discount AS FLOAT64)             AS platform_discount,
+  CAST(payment.seller_discount AS FLOAT64)               AS seller_discount,
+  CAST(payment.shipping_fee_platform_discount AS FLOAT64) AS shipping_fee_platform_discount,
+  CAST(payment.shipping_fee_seller_discount AS FLOAT64)   AS shipping_fee_seller_discount,
+  CAST(payment.tax AS FLOAT64)                           AS tax,
+  TIMESTAMP_SECONDS(create_time)                 AS create_time,
+  TIMESTAMP_SECONDS(update_time)                 AS update_time,
+  TIMESTAMP_SECONDS(NULLIF(collection_time, 0))  AS collection_time,
+  TIMESTAMP_SECONDS(NULLIF(rts_time, 0))         AS rts_time,
+  line_items,
+  _ingested_at
+FROM ${ref("tiktok_orders")}
