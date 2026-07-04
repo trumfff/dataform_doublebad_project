@@ -1,0 +1,38 @@
+config {
+  type: "view",
+  schema: "stg_shopee",
+  name: "stg_shopee_order_details",
+  description: "Parse order_details: flatten cấp đơn + ép kiểu. Quy ước: ID→STRING, tiền→FLOAT64, thời gian epoch→TIMESTAMP. Bỏ PII. GIỮ mọi snapshot. item_list để raw cho stg_order_items.",
+  tags: ["staging", "shopee"]
+}
+
+SELECT
+  CAST(shop_id AS STRING)                         AS shop_id,
+  ingest_dt,
+  order_sn,
+  order_status,
+  region,
+  currency,
+  cod,
+  payment_method,
+  CAST(buyer_user_id AS STRING)                   AS buyer_user_id,
+  buyer_username,
+  CAST(total_amount AS FLOAT64)                   AS total_amount,
+  CAST(estimated_shipping_fee AS FLOAT64)         AS estimated_shipping_fee,
+  CAST(actual_shipping_fee AS FLOAT64)            AS actual_shipping_fee,
+  CAST(reverse_shipping_fee AS FLOAT64)           AS reverse_shipping_fee,
+  days_to_ship,
+  fulfillment_flag,
+  shipping_carrier,
+  cancel_by,
+  cancel_reason,
+  note,
+  message_to_seller,
+  item_list,                                       -- raw array → stg_order_items explode
+  TIMESTAMP_SECONDS(create_time)                  AS create_time,
+  TIMESTAMP_SECONDS(update_time)                  AS update_time,
+  TIMESTAMP_SECONDS(NULLIF(pay_time, 0))          AS pay_time,
+  TIMESTAMP_SECONDS(NULLIF(ship_by_date, 0))      AS ship_by_date,
+  TIMESTAMP_SECONDS(NULLIF(pickup_done_time, 0))  AS pickup_done_time,
+  _ingested_at
+FROM ${ref("shopee_order_details")}

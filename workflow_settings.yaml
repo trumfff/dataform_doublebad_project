@@ -1,4 +1,8 @@
+# Cấu hình Dataform. ⚠️ Khớp với repo Dataform của bạn:
+#  - dataformCoreVersion: sửa cho đúng bản repo bạn đang dùng (xem trong Console → Dataform).
+#  - defaultLocation phải = US (khớp dataset doublebad_raw/doublebad_silver + bucket US).
 defaultProject: doublebadstudio-447803
-defaultDataset: dataform
-defaultAssertionDataset: dataform_assertions
-dataformCoreVersion: 3.0.35
+defaultLocation: US
+defaultDataset: doublebad_silver
+defaultAssertionDataset: doublebad_assertions
+dataformCoreVersion: 3.0.0

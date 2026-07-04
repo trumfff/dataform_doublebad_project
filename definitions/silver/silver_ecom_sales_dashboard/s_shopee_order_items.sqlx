@@ -1,0 +1,22 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_shopee_order_items",  
+  description: "Shopee chi tiết món. Khử trùng stg_order_items: giữ bản đơn mới nhất / (shop_id, order_sn, item_id, model_id).",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(create_time, MONTH)", 
+  },
+  tags: ["silver", "shopee"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, order_sn, item_id, model_id
+      ORDER BY order_update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_shopee_order_items")}
+)
+WHERE _rn = 1

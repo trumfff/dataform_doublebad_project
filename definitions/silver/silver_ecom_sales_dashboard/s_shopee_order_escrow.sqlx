@@ -1,0 +1,23 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_shopee_order_escrow",
+  description: "Shopee escrow (P&L cấp đơn). Khử trùng stg_escrow: giữ bản ingest mới nhất / (shop_id, order_sn).",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(ingest_dt, MONTH)",
+    clusterBy: ["shop_id"]
+  },
+  tags: ["silver", "shopee"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, order_sn
+      ORDER BY _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_shopee_order_escrow")}
+)
+WHERE _rn = 1

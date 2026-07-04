@@ -1,0 +1,35 @@
+config {
+  type: "view",
+  schema: "stg_shopee",
+  name: "stg_shopee_order_items",
+  description: "Explode item_list → 1 dòng = 1 món. Quy ước: ID (item_id, model_id, order_item_id, promotion_id)→STRING, giá→FLOAT64, qty→INT. GIỮ mọi snapshot.",
+  tags: ["staging", "shopee"]
+}
+
+SELECT
+  o.shop_id,                                          -- đã STRING ở stg_order_details
+  o.ingest_dt,
+  o.order_sn,
+  o.order_status,
+  o.create_time AS create_time,
+  o.update_time AS order_update_time,
+  CAST(i.item_id AS STRING)                AS item_id,
+  i.item_name,
+  i.item_sku,
+  CAST(i.model_id AS STRING)               AS model_id,
+  i.model_name,
+  i.model_sku,
+  i.model_quantity_purchased,
+  CAST(i.model_original_price AS FLOAT64)  AS model_original_price,
+  CAST(i.model_discounted_price AS FLOAT64) AS model_discounted_price,
+  i.weight,
+  i.promotion_type,
+  CAST(i.promotion_id AS STRING)           AS promotion_id,
+  i.add_on_deal,
+  i.main_item,
+  CAST(i.order_item_id AS STRING)          AS order_item_id,
+  i.cancelled_qty,
+  i.return_requested_qty,
+  i.returned_qty,
+  o._ingested_at
+FROM ${ref("stg_shopee_order_details")} o, UNNEST(o.item_list) AS i
