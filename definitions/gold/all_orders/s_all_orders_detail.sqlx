@@ -2,7 +2,7 @@ config {
   type: "table",
   schema: "silver_ecom_sales_dashboard",
   name: "s_all_orders_detail",
-  description: "Gộp đơn cấp MÓN 3 sàn (Shopee/Haravan/TikTok) từ silver mới, schema chung 57 cột (như all_orders_detail cũ). UNION ALL v_items_*. Lazada chưa có silver mới.",
+  description: "Gộp đơn cấp MÓN từ silver mới (Shopee/Haravan/TikTok, create_time >= 2025-01-01 UTC) + lịch sử legacy (< 2025-01-01 UTC + toàn bộ LAZADA) — schema chung 57 cột. Ranh giới 2025-01-01 UTC chia 2 nguồn KHÔNG trùng: backfill bắt cả đơn tạo cuối 2024 (window update_time) nên phía mới phải cắt >= mốc; phần đó legacy đã có đủ.",
   bigquery: {
     partitionBy: "DATE_TRUNC(create_time, MONTH)",
     clusterBy: ["platform"]
@@ -10,8 +10,14 @@ config {
   tags: ["gold", "all_orders"]
 }
 
-SELECT * FROM ${ref("v_items_shopee")}
+SELECT * FROM (
+  SELECT * FROM ${ref("v_items_shopee")}
+  UNION ALL
+  SELECT * FROM ${ref("v_items_tiktok")}
+  UNION ALL
+  SELECT * FROM ${ref("v_items_haravan")}
+)
+WHERE create_time >= TIMESTAMP '2025-01-01 00:00:00+00'
+
 UNION ALL
-SELECT * FROM ${ref("v_items_tiktok")}
-UNION ALL
-SELECT * FROM ${ref("v_items_haravan")}
+SELECT * FROM ${ref("v_items_legacy")}

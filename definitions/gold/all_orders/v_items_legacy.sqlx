@@ -1,0 +1,77 @@
+config {
+  type: "view",
+  schema: "silver_ecom_sales_dashboard",
+  name: "v_items_legacy",
+  description: "Lịch sử từ gold cũ (legacy_all_orders_detail, copy 1 lần từ asia-SE1): đóng góp phần create_time < 2025-01-01 UTC + TOÀN BỘ LAZADA (chưa có silver mới). Cast schema cũ→mới: DATETIME→TIMESTAMP theo tz TỪNG SÀN (đã chứng minh bằng data 2026-07-04: HARAVAN lưu UTC, Shopee/TikTok lưu giờ VN; Lazada giả định VN như file export). main_item STRING→BOOL, qty FLOAT→INT64, days_to_ship STRING→INT64, shopee_discount/discount_from_coin INT→FLOAT64.",
+  tags: ["gold", "all_orders", "legacy"]
+}
+
+js {
+  // DATETIME cũ → TIMESTAMP UTC: HARAVAN vốn là UTC, các sàn khác là giờ VN
+  function toTs(col) {
+    return `CASE WHEN platform = 'HARAVAN' THEN TIMESTAMP(${col}) ELSE TIMESTAMP(${col}, 'Asia/Ho_Chi_Minh') END AS ${col}`;
+  }
+}
+
+SELECT
+  file_name,
+  order_sn,
+  order_status,
+  buyer_username,
+  buyer_user_id,
+  cancel_by,
+  cancel_reason,
+  NAME AS name,
+  phone,
+  town,
+  district,
+  city,
+  item_id,
+  item_sku,
+  item_name,
+  model_sku,
+  brand,
+  model_name,
+  SAFE_CAST(main_item AS BOOL)               AS main_item,
+  CAST(model_quantity_purchased AS INT64)    AS model_quantity_purchased,
+  original_price,
+  seller_discount,
+  CAST(shopee_discount AS FLOAT64)           AS shopee_discount,
+  selling_price,
+  CAST(discount_from_coin AS FLOAT64)        AS discount_from_coin,
+  discount_from_voucher_seller,
+  discount_from_voucher_shopee,
+  actual_shipping_fee,
+  shopee_shipping_rebate,
+  seller_shipping_discount,
+  shipping_fee_discount_from_3pl,
+  buyer_paid_shipping_fee,
+  credit_card_promotion,
+  credit_card_transaction_fee,
+  seller_coin_cash_back,
+  seller_transaction_fee,
+  buyer_transaction_fee,
+  campaign_fee,
+  commission_fee,
+  buyer_service_fee,
+  seller_voucher_code,
+  escrow_amount,
+  ${toTs("create_time")},
+  ${toTs("pickup_done_time")},
+  ${toTs("ship_by_date")},
+  ${toTs("pay_time")},
+  ${toTs("return_request_due_date")},
+  payment_method,
+  shipping_carrier,
+  promotion_type,
+  SAFE_CAST(days_to_ship AS INT64)           AS days_to_ship,
+  fulfillment_flag,
+  invoice_data,
+  ${toTs("cancel_time")},
+  platform,
+  source,
+  location_id
+FROM ${ref("legacy_all_orders_detail")}
+WHERE platform = 'LAZADA'
+   OR (CASE WHEN platform = 'HARAVAN' THEN TIMESTAMP(create_time)
+            ELSE TIMESTAMP(create_time, 'Asia/Ho_Chi_Minh') END) < TIMESTAMP '2025-01-01 00:00:00+00'
