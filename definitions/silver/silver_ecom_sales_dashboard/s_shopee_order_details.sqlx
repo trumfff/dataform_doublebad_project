@@ -1,10 +1,12 @@
 config {
-  type: "table",
+  type: "incremental",
   schema: "silver_ecom_sales_dashboard",
   name: "s_shopee_order_details",
-  description: "Shopee đơn (cấp đơn). Khử trùng stg_order_details: giữ bản update_time mới nhất / (shop_id, order_sn). Bỏ item_list (đã có ở order_items).",
+  description: "Shopee đơn (cấp đơn). Khử trùng stg_order_details: giữ bản update_time mới nhất / (shop_id, order_sn). Bỏ item_list (đã có ở order_items). INCREMENTAL: chỉ quét ingest_dt mới để giảm đọc raw GCS.",
+  uniqueKey: ["shop_id", "order_sn"],
   bigquery: {
-    partitionBy: "DATE_TRUNC(create_time, MONTH)", 
+    partitionBy: "DATE_TRUNC(create_time, MONTH)",
+    updatePartitionFilter: "create_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 100 DAY)"
   },
   tags: ["silver", "shopee"]
 }
@@ -18,5 +20,6 @@ FROM (
       ORDER BY update_time DESC, _ingested_at DESC
     ) AS _rn
   FROM ${ref("stg_shopee_order_details")}
+  ${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)`)}
 )
 WHERE _rn = 1

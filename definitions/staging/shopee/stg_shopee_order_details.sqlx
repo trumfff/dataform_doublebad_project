@@ -1,8 +1,14 @@
 config {
-  type: "view",
+  type: "incremental",
   schema: "stg_shopee",
   name: "stg_shopee_order_details",
-  description: "Parse order_details: flatten cấp đơn + ép kiểu. Quy ước: ID→STRING, tiền→FLOAT64, thời gian epoch→TIMESTAMP. Bỏ PII. GIỮ mọi snapshot. item_list để raw cho stg_order_items.",
+  description: "Parse order_details: flatten cấp đơn + ép kiểu. Quy ước: ID→STRING, tiền→FLOAT64, thời gian epoch→TIMESTAMP. Bỏ PII. item_list để raw cho stg_order_items. NATIVE incremental: materialize external theo ingest_dt (chỉ đọc slice mới), tránh downstream đọc lại GCS mỗi lần.",
+  uniqueKey: ["shop_id", "order_sn", "ingest_dt"],
+  bigquery: {
+    partitionBy: "ingest_dt",
+    clusterBy: ["shop_id"],
+    updatePartitionFilter: "ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)"
+  },
   tags: ["staging", "shopee"]
 }
 
@@ -36,3 +42,5 @@ SELECT
   TIMESTAMP_SECONDS(NULLIF(pickup_done_time, 0))  AS pickup_done_time,
   _ingested_at
 FROM ${ref("shopee_order_details")}
+${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)`)}
+QUALIFY ROW_NUMBER() OVER (PARTITION BY shop_id, order_sn, ingest_dt ORDER BY _ingested_at DESC) = 1

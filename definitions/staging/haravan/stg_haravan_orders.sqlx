@@ -1,8 +1,14 @@
 config {
-  type: "view",
+  type: "incremental",
   schema: "stg_haravan",
   name: "stg_haravan_orders",
-  description: "Parse Haravan orders: flatten header + customer{}, ép kiểu (ID→STRING, tiền→FLOAT64, ISO→TIMESTAMP). GIỮ mọi snapshot. line_items để raw cho order_items.",
+  description: "Parse Haravan orders: flatten header + customer{}, ép kiểu (ID→STRING, tiền→FLOAT64, ISO→TIMESTAMP). line_items để raw cho order_items. NATIVE incremental: materialize external theo ingest_dt (chỉ đọc slice mới), tránh downstream đọc lại GCS mỗi lần.",
+  uniqueKey: ["shop_id", "order_id", "ingest_dt"],
+  bigquery: {
+    partitionBy: "ingest_dt",
+    clusterBy: ["shop_id"],
+    updatePartitionFilter: "ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)"
+  },
   tags: ["staging", "haravan"]
 }
 
@@ -45,3 +51,5 @@ SELECT
   line_items,
   _ingested_at
 FROM ${ref("haravan_orders")}
+${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)`)}
+QUALIFY ROW_NUMBER() OVER (PARTITION BY shop_id, order_id, ingest_dt ORDER BY _ingested_at DESC) = 1

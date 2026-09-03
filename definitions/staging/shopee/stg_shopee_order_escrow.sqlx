@@ -1,8 +1,14 @@
 config {
-  type: "view",
+  type: "incremental",
   schema: "stg_shopee",
   name: "stg_shopee_order_escrow",
-  description: "Parse escrow: flatten order_income (người bán) + buyer_payment_info (người mua). Quy ước: ID→STRING, toàn bộ tiền→FLOAT64 (VND). GIỮ mọi snapshot. Tập cột tài chính CHỌN LỌC.",
+  description: "Parse escrow: flatten order_income (người bán) + buyer_payment_info (người mua). Quy ước: ID→STRING, toàn bộ tiền→FLOAT64 (VND). Tập cột tài chính CHỌN LỌC. NATIVE incremental: materialize external theo ingest_dt (chỉ đọc slice mới), tránh downstream đọc lại GCS mỗi lần.",
+  uniqueKey: ["shop_id", "order_sn", "ingest_dt"],
+  bigquery: {
+    partitionBy: "ingest_dt",
+    clusterBy: ["shop_id"],
+    updatePartitionFilter: "ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)"
+  },
   tags: ["staging", "shopee"]
 }
 
@@ -37,3 +43,5 @@ SELECT
 
   _ingested_at
 FROM ${ref("shopee_escrow")}
+${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)`)}
+QUALIFY ROW_NUMBER() OVER (PARTITION BY shop_id, order_sn, ingest_dt ORDER BY _ingested_at DESC) = 1
