@@ -43,5 +43,5 @@ SELECT
 
   _ingested_at
 FROM ${ref("shopee_escrow")}
-${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)`)}
+${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)`)}
 QUALIFY ROW_NUMBER() OVER (PARTITION BY shop_id, order_sn, ingest_dt ORDER BY _ingested_at DESC) = 1
