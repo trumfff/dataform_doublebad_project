@@ -1,0 +1,30 @@
+config {
+  type: "view",
+  schema: "silver_ecom_sales_dashboard",
+  name: "v_all_orders_detail_compat",
+  description: "View TƯƠNG THÍCH schema mart cũ (order_detail.NEW_all_orders_detail) để Power BI đổi nguồn KHÔNG phải sửa measure. Cast 11 cột về đúng kiểu cũ. Timestamp -> DATETIME tái tạo đúng quy ước mart cũ: HARAVAN=UTC, các sàn khác=giờ VN (Asia/Ho_Chi_Minh) -> số BI ra y hệt như cũ.",
+  tags: ["gold", "all_orders", "compat"]
+}
+
+js {
+  // TIMESTAMP (UTC) -> DATETIME theo quy uoc mart cu: Haravan giu UTC, con lai doi ve gio VN
+  function toDt(col) {
+    return `CASE WHEN platform = 'HARAVAN' THEN CAST(${col} AS DATETIME)
+                 ELSE DATETIME(${col}, 'Asia/Ho_Chi_Minh') END AS ${col}`;
+  }
+}
+
+SELECT * REPLACE (
+  ${toDt("create_time")},
+  ${toDt("pickup_done_time")},
+  ${toDt("ship_by_date")},
+  ${toDt("pay_time")},
+  ${toDt("return_request_due_date")},
+  ${toDt("cancel_time")},
+  CAST(main_item AS STRING)                 AS main_item,
+  CAST(model_quantity_purchased AS FLOAT64) AS model_quantity_purchased,
+  CAST(shopee_discount AS INT64)            AS shopee_discount,
+  CAST(discount_from_coin AS INT64)         AS discount_from_coin,
+  CAST(days_to_ship AS STRING)              AS days_to_ship
+)
+FROM ${ref("s_all_orders_detail")}
