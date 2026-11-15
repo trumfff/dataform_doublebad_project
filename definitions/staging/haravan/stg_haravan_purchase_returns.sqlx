@@ -1,0 +1,40 @@
+config {
+  type: "incremental",
+  schema: "stg_haravan",
+  name: "stg_haravan_purchase_returns",
+  description: "Parse Haravan phiếu xuất trả NCC (header). Flatten supplier{} + location{}, giữ line_items raw cho return_items. NATIVE incremental theo ingest_dt.",
+  uniqueKey: ["shop_id", "return_id", "ingest_dt"],
+  bigquery: {
+    partitionBy: "ingest_dt",
+    clusterBy: ["shop_id"],
+    updatePartitionFilter: "ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)",
+    partitionExpirationDays: 14
+  },
+  tags: ["staging", "haravan", "haravan_inventory"]
+}
+
+SELECT
+  CAST(shop_id AS STRING)           AS shop_id,
+  ingest_dt,
+  CAST(id AS STRING)                AS return_id,
+  return_number,
+  ref_number,
+  CAST(ref_receive_id AS STRING)    AS receive_id,
+  status,
+  notes,
+  tags,
+  CAST(total AS FLOAT64)            AS total_quantity,
+  CAST(total_cost AS FLOAT64)       AS total_cost,
+  CAST(supplier.id AS STRING)       AS supplier_id,
+  supplier.name                     AS supplier_name,
+  supplier.phone                    AS supplier_phone,
+  CAST(location.id AS STRING)       AS location_id,
+  location.name                     AS location_name,
+  location.province                 AS location_province,
+  CAST(returned_at AS TIMESTAMP)    AS returned_time,
+  CAST(created_at AS TIMESTAMP)     AS create_time,
+  CAST(updated_at AS TIMESTAMP)     AS update_time,
+  line_items,
+  _ingested_at
+FROM ${ref("haravan_purchase_returns")}
+${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)`)}

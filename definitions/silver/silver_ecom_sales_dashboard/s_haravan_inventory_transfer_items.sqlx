@@ -1,0 +1,24 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_haravan_inventory_transfer_items",
+  description: "Haravan chuyển kho cấp SẢN PHẨM: SKU nào chuyển từ chi nhánh nào sang chi nhánh nào, số lượng. Rebuild từ snapshot ingest_dt mới nhất.",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(tran_time, MONTH)",
+    clusterBy: ["shop_id", "from_location_id", "sku"]
+  },
+  tags: ["silver", "haravan", "haravan_inventory"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, transfer_id, line_item_id
+      ORDER BY transfer_update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_haravan_inventory_transfer_items")}
+  WHERE ingest_dt = (SELECT MAX(ingest_dt) FROM ${ref("stg_haravan_inventory_transfers")})
+)
+WHERE _rn = 1

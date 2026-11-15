@@ -1,0 +1,24 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_haravan_purchase_receives",
+  description: "Haravan phiếu nhập hàng (header): tổng tiền nhập, NCC, chi nhánh. Rebuild từ snapshot ingest_dt mới nhất.",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(create_time, MONTH)",
+    clusterBy: ["shop_id", "supplier_id"]
+  },
+  tags: ["silver", "haravan", "haravan_inventory"]
+}
+
+SELECT * EXCEPT(line_items, _rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, receive_id
+      ORDER BY update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_haravan_purchase_receives")}
+  WHERE ingest_dt = (SELECT MAX(ingest_dt) FROM ${ref("stg_haravan_purchase_receives")})
+)
+WHERE _rn = 1

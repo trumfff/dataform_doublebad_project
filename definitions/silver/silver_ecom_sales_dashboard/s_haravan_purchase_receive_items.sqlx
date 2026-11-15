@@ -1,0 +1,24 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_haravan_purchase_receive_items",
+  description: "Haravan nhập hàng cấp SẢN PHẨM: giá nhập thực tế (cost) theo SKU/NCC/thời điểm. Nguồn tốt nhất để tính COGS thật thay vì giá cố định trong dim_product. Rebuild từ snapshot ingest_dt mới nhất.",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(received_time, MONTH)",
+    clusterBy: ["shop_id", "supplier_id", "sku"]
+  },
+  tags: ["silver", "haravan", "haravan_inventory"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, receive_id, line_item_id
+      ORDER BY receive_update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_haravan_purchase_receive_items")}
+  WHERE ingest_dt = (SELECT MAX(ingest_dt) FROM ${ref("stg_haravan_purchase_receives")})
+)
+WHERE _rn = 1

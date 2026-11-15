@@ -1,0 +1,24 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_haravan_purchase_return_items",
+  description: "Haravan xuất trả NCC cấp SẢN PHẨM: SKU nào bị trả, số lượng, giá trị. Dùng để tính tỉ lệ trả hàng theo NCC. Rebuild từ snapshot ingest_dt mới nhất.",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(returned_time, MONTH)",
+    clusterBy: ["shop_id", "supplier_id", "sku"]
+  },
+  tags: ["silver", "haravan", "haravan_inventory"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, return_id, line_item_id
+      ORDER BY return_update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_haravan_purchase_return_items")}
+  WHERE ingest_dt = (SELECT MAX(ingest_dt) FROM ${ref("stg_haravan_purchase_returns")})
+)
+WHERE _rn = 1
