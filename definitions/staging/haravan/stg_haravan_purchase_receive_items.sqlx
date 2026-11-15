@@ -1,0 +1,37 @@
+config {
+  type: "view",
+  schema: "stg_haravan",
+  name: "stg_haravan_purchase_receive_items",
+  description: "Explode line_items phiếu nhập → 1 dòng = 1 sản phẩm nhập. Giữ lots[] raw (lô/hạn dùng). GIỮ mọi snapshot.",
+  tags: ["staging", "haravan", "haravan_inventory"]
+}
+
+SELECT
+  r.shop_id,
+  r.ingest_dt,
+  r.receive_id,
+  r.receive_number,
+  r.purchase_order_id,
+  r.supplier_id,
+  r.supplier_name,
+  r.location_id,
+  r.status,
+  r.received_time,
+  r.update_time                        AS receive_update_time,
+  CAST(i.id AS STRING)                 AS line_item_id,
+  CAST(i.product_id AS STRING)         AS product_id,
+  CAST(i.product_variant_id AS STRING) AS variant_id,
+  i.sku,
+  i.barcode,
+  i.product_name,
+  i.variant_title,
+  CAST(i.quantity AS FLOAT64)          AS quantity,
+  CAST(i.original_cost AS FLOAT64)     AS original_cost,
+  CAST(i.discount_amount AS FLOAT64)   AS discount_amount,
+  CAST(i.cost AS FLOAT64)              AS cost,
+  CAST(i.total_cost AS FLOAT64)        AS total_cost,
+  i.variant_unit.unit                  AS unit,
+  CAST(i.variant_unit.ratio AS FLOAT64) AS unit_ratio,
+  i.lots,
+  r._ingested_at
+FROM ${ref("stg_haravan_purchase_receives")} r, UNNEST(r.line_items) AS i

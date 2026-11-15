@@ -1,0 +1,36 @@
+config {
+  type: "incremental",
+  schema: "stg_haravan",
+  name: "stg_haravan_inventory_transfers",
+  description: "Parse Haravan chuyển kho giữa chi nhánh: ép kiểu, giữ line_items raw cho transfer_items. NATIVE incremental theo ingest_dt.",
+  uniqueKey: ["shop_id", "transfer_id", "ingest_dt"],
+  bigquery: {
+    partitionBy: "ingest_dt",
+    clusterBy: ["shop_id"],
+    updatePartitionFilter: "ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)",
+    partitionExpirationDays: 14
+  },
+  tags: ["staging", "haravan", "haravan_inventory"]
+}
+
+SELECT
+  CAST(shop_id AS STRING)        AS shop_id,
+  ingest_dt,
+  CAST(id AS STRING)             AS transfer_id,
+  transfer_number,
+  CAST(from_loc_id AS STRING)    AS from_location_id,
+  CAST(to_loc_id AS STRING)      AS to_location_id,
+  reason,
+  status,
+  note,
+  tags,
+  CAST(total AS FLOAT64)         AS total_quantity,
+  CAST(created_user AS STRING)   AS created_user_id,
+  CAST(received_user AS STRING)  AS received_user_id,
+  CAST(tran_date AS TIMESTAMP)   AS tran_time,
+  CAST(created_at AS TIMESTAMP)  AS create_time,
+  CAST(updated_at AS TIMESTAMP)  AS update_time,
+  line_items,
+  _ingested_at
+FROM ${ref("haravan_inventory_transfers")}
+${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)`)}

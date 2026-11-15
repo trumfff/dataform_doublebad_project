@@ -1,0 +1,24 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_haravan_purchase_orders",
+  description: "Haravan đơn đặt hàng NCC (header). KHÔNG có bảng item kèm theo: API list không trả line items (rỗng 948/948 trên data thật). Rebuild từ snapshot ingest_dt mới nhất.",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(create_time, MONTH)",
+    clusterBy: ["shop_id", "status"]
+  },
+  tags: ["silver", "haravan", "haravan_inventory"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, purchase_order_id
+      ORDER BY update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_haravan_purchase_orders")}
+  WHERE ingest_dt = (SELECT MAX(ingest_dt) FROM ${ref("stg_haravan_purchase_orders")})
+)
+WHERE _rn = 1

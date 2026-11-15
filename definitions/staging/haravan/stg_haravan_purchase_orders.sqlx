@@ -1,0 +1,37 @@
+config {
+  type: "incremental",
+  schema: "stg_haravan",
+  name: "stg_haravan_purchase_orders",
+  description: "Parse Haravan đơn đặt hàng NCC (header). LƯU Ý: API list KHÔNG trả line items — received_items/not_received_items rỗng 948/948 dòng trên data thật, nên KHÔNG dựng bảng item cho entity này. supplier cũng rỗng 942/948.",
+  uniqueKey: ["shop_id", "purchase_order_id", "ingest_dt"],
+  bigquery: {
+    partitionBy: "ingest_dt",
+    clusterBy: ["shop_id"],
+    updatePartitionFilter: "ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)",
+    partitionExpirationDays: 14
+  },
+  tags: ["staging", "haravan", "haravan_inventory"]
+}
+
+SELECT
+  CAST(shop_id AS STRING)          AS shop_id,
+  ingest_dt,
+  CAST(id AS STRING)               AS purchase_order_id,
+  purchase_number,
+  ref_number,
+  status,
+  notes,
+  CAST(supplier.id AS STRING)      AS supplier_id,
+  supplier.name                    AS supplier_name,
+  supplier.phone                   AS supplier_phone,
+  CAST(location.id AS STRING)      AS location_id,
+  location.name                    AS location_name,
+  location.province                AS location_province,
+  CAST(tran_date AS TIMESTAMP)     AS expected_time,
+  CAST(completed_at AS TIMESTAMP)  AS completed_time,
+  CAST(closed_at AS TIMESTAMP)     AS closed_time,
+  CAST(created_at AS TIMESTAMP)    AS create_time,
+  CAST(updated_at AS TIMESTAMP)    AS update_time,
+  _ingested_at
+FROM ${ref("haravan_purchase_orders")}
+${when(incremental(), `WHERE ingest_dt >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)`)}
