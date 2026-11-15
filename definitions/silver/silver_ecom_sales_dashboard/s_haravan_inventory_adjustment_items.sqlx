@@ -1,0 +1,24 @@
+config {
+  type: "table",
+  schema: "silver_ecom_sales_dashboard",
+  name: "s_haravan_inventory_adjustment_items",
+  description: "Haravan điều chỉnh kho cấp SẢN PHẨM: quantity âm = hao hụt/xuất, dương = nhập thêm. Dùng cho báo cáo thất thoát theo SKU / chi nhánh. Rebuild từ snapshot ingest_dt mới nhất.",
+  bigquery: {
+    partitionBy: "DATE_TRUNC(tran_time, MONTH)",
+    clusterBy: ["shop_id", "location_id", "sku"]
+  },
+  tags: ["silver", "haravan", "haravan_inventory"]
+}
+
+SELECT * EXCEPT(_rn)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY shop_id, adjustment_id, line_item_id
+      ORDER BY adjustment_update_time DESC, _ingested_at DESC
+    ) AS _rn
+  FROM ${ref("stg_haravan_inventory_adjustment_items")}
+  WHERE ingest_dt = (SELECT MAX(ingest_dt) FROM ${ref("stg_haravan_inventory_adjustments")})
+)
+WHERE _rn = 1
